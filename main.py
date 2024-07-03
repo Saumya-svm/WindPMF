@@ -34,6 +34,63 @@ from train import train_save_model
 import pickle
 from opt import fitness
 
+def eval():
+    with open('opt_params.pkl', 'rb') as f:
+        optimized_params = pickle.load(f)
+
+    trainX, trainY, valX, valY, testX, testY = prepare_data(int(optimized_params[3]))
+    model, lr_sched = prepare_model(*optimized_params)
+    model(trainX)
+    model.load_weights('best_model')
+    
+    model.evaluate(trainX, trainY)
+    model.evaluate(testX, testY)
+    model.evaluate(valX, valY)
+
+
+def train():
+    learning_rate = args.ini_learning_rate
+    decay_rate = args.decay_rate
+    step_size = args.step_size
+    seq_len = args.seq_len
+    numBlocks = args.numBlocks
+    numLayers = args.numLayers
+    filters = args.filters
+
+    optimized_params = [learning_rate, decay_rate, step_size, seq_len, numBlocks, numLayers, filters]
+
+    train_save_model(optimized_params)
+
+def opt():
+    learning_rate = Real(low=5e-4, high=1e-1, prior='log-uniform',name='learning_rate')
+    decay_rate = Real(low=0.1, high=0.98, name='decay_rate')
+    step_size = Integer(low=10, high=100, name='step_size')
+    seq_len = Categorical([4,8,16,32], name='seq_len')
+    numBlocks = Categorical([2,3,4,5], name='numBlocks')
+    numLayers = Categorical([2,3,4,5], name='numLayers')
+    filters = Categorical([16,32,64,128,256], name='filters')
+
+    default_parameters = [8e-3, 0.85, 75, 16, 3, 3, 64]
+    dimensions = [learning_rate, decay_rate, step_size, seq_len, numBlocks, numLayers, filters]
+
+    search_result = gp_minimize(func=fitness,
+                                dimensions=dimensions,
+                                acq_func='EI', # Expected Improvement.
+                                n_calls=12,
+                                x0=default_parameters)
+
+    optimized_params = search_result.x
+    func_vals = search_result.func_vals
+    x_iters = search_result.x_iters
+
+    with open('opt_params.pkl', 'wb') as f:
+        pickle.dump(optimized_params, f)
+
+    df = pd.DataFrame(x_iters, columns=["ini_learning_rate", "decay_rate", "step_size", "seq_len", "numBlocks", "numLayers", "filters"])
+    df.loc[:, ["Validation mse"]] = func_vals
+    df.to_csv("result.csv")
+    train_save_model(optimized_params)
+
 def main():
     global target, image_1d
     target = []
@@ -45,49 +102,13 @@ def main():
     image_1d = target.reshape(-1,192)
 
     if args.train:
-       learning_rate = args.ini_learning_rate
-       decay_rate = args.decay_rate
-       step_size = args.step_size
-       seq_len = args.seq_len
-       numBlocks = args.numBlocks
-       numLayers = args.numLayers
-       filters = args.filters
-
-       optimized_params = [learning_rate, decay_rate, step_size, seq_len, numBlocks, numLayers, filters]
-
-       train_save_model(optimized_params)
+        train()
 
     if args.opt:
-        default_parameters = [8e-3, 0.85, 75, 16, 3, 3, 64]
-        dimensions = [learning_rate, decay_rate, step_size, seq_len, numBlocks, numLayers, filters]
-
-        search_result = gp_minimize(func=fitness,
-                                    dimensions=dimensions,
-                                    acq_func='EI', # Expected Improvement.
-                                    n_calls=12,
-                                    x0=default_parameters)
-
-        optimized_params = search_result.x
-        func_vals = search_result.func_vals
-        x_iters = search_result.x_iters
-
-        with open('opt_params.pkl', 'wb') as f:
-            pickle.dump(optimized_params, f)
-
-        df = pd.DataFrame(x_iters, columns=["ini_learning_rate", "decay_rate", "step_size", "seq_len", "numBlocks", "numLayers", "filters"])
-        df.loc[:, ["Validation mse"]] = func_vals
-        df.to_csv("result.csv")
-        train_save_model(optimized_params)
+        opt()
 
     if args.eval:
-        # use below snippet to reproduce results on the best model
-        with open('opt_params.pkl', 'rb') as f:
-            optimized_params = pickle.load(f)
-
-        trainX, trainY, valX, valY, testX, testY = prepare_data(int(optimized_params[3]))
-        model, lr_sched = prepare_model(*optimized_params)
-        model(trainX)
-        model.load_weights('best_model')
+        eval()
 
 '''
 structure
@@ -97,9 +118,6 @@ options
 2. Optimise the model and return the best set of hyperparameters
 3. Evaluate the model on the given set of hyperparameters
 '''
-## structure
-## options 
-# train models on parameters
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
