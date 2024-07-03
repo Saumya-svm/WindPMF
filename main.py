@@ -19,16 +19,10 @@ import tensorflow_addons as tfa
 from tensorflow.keras import backend as K
 import numpy as np
 from keras.callbacks import LearningRateScheduler
-import skopt
 from skopt import gp_minimize, forest_minimize
 from skopt.space import Real, Categorical, Integer
-from skopt.plots import plot_convergence
-from skopt.plots import plot_objective, plot_evaluations
-from skopt.plots import plot_objective
-from skopt.utils import use_named_args, dump, load
 from keras.callbacks import TensorBoard
 import argparse
-import shutil
 from utils import parse, prepare_data, prepare_model
 from train import train_save_model
 import pickle
