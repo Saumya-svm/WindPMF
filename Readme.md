@@ -1,7 +1,7 @@
 ## WindPMF
 
 To run : 
-`python3 train.py --include_denoiser True model_dir </path/to/save/model>`
+`python3 main.py --eval 1 --weights_path <path> --params_apth <params_path>`
 
 ## Command Line Arguments
 
